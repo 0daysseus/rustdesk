@@ -1,0 +1,12 @@
+name: Run private desktop builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: 0daysseus/rustdesk/.github/workflows/private-desktop-builds.yml@private-selfhost-no-public-domains
+    secrets: inherit
