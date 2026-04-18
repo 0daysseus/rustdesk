@@ -7,7 +7,6 @@ import 'package:flutter_hbb/common/widgets/connection_page_title.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 
 import '../../common.dart';
@@ -124,7 +123,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
         ? const SizedBox(height: 0)
         : InkWell(
             onTap: () async {
-              final url = 'https://rustdesk.com/download';
               // https://pub.dev/packages/url_launcher#configuration
               // https://developer.android.com/training/package-visibility/use-cases#open-urls-custom-tabs
               //
@@ -133,7 +131,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
               // 2. `<action android:name="android.support.customtabs.action.CustomTabsService" />` in AndroidManifest.xml
               //
               // But it is better to add the check.
-              await launchUrl(Uri.parse(url));
+              await launchExternalUrl('https://rustdesk.com/download');
             },
             child: Container(
                 alignment: AlignmentDirectional.center,

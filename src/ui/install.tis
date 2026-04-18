@@ -2,6 +2,12 @@ function self.ready() {
     centerize(scaleIt(800), scaleIt(600));
 }
 
+function open_external_url(url) {
+    if (!url) return;
+    if (url.toLowerCase().indexOf("rustdesk.com") >= 0) return;
+    view.open_url(url);
+}
+
 var install_path = "";
 
 class Install: Reactor.Component {
@@ -50,7 +56,7 @@ class Install: Reactor.Component {
     }
 
     event click $(#agreement) {
-        view.open_url("http://rustdesk.com/privacy");
+        open_external_url("http://rustdesk.com/privacy");
     }
 
     event click $(#submit) {

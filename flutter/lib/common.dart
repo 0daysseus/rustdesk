@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_hbb/common/external_url_policy.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
@@ -46,6 +47,8 @@ import 'package:flutter_hbb/native/win32.dart'
 import 'package:flutter_hbb/native/common.dart'
     if (dart.library.html) 'package:flutter_hbb/web/common.dart';
 import 'package:flutter_hbb/utils/http_service.dart' as http;
+
+export 'common/external_url_policy.dart';
 
 final globalKey = GlobalKey<NavigatorState>();
 final navigationBarKey = GlobalKey();
@@ -1148,7 +1151,7 @@ Widget createDialogContent(String text) {
         ..onTap = () {
           String linkText = match.group(0) ?? '';
           linkText = linkText.replaceAll(RegExp(r'[.,;!?]+$'), '');
-          launchUrl(Uri.parse(linkText));
+          launchExternalUrl(linkText);
         },
     ));
     start = match.end;
@@ -1194,7 +1197,7 @@ void msgBox(SessionID sessionId, String type, String title, String text,
 
   jumplink() {
     if (link.startsWith('http')) {
-      launchUrl(Uri.parse(link));
+      launchExternalUrl(link);
     }
   }
 
@@ -3686,7 +3689,7 @@ Widget loadPowered(BuildContext context) {
     cursor: SystemMouseCursors.click,
     child: GestureDetector(
       onTap: () {
-        launchUrl(Uri.parse('https://rustdesk.com'));
+        launchExternalUrl('https://rustdesk.com');
       },
       child: Opacity(
           opacity: 0.5,

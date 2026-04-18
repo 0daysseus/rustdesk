@@ -58,6 +58,12 @@ function get_id() {
   return my_id;
 }
 
+function open_external_url(url) {
+    if (!url) return;
+    if (url.toLowerCase().indexOf("rustdesk.com") >= 0) return;
+    handler.open_url(url);
+}
+
 function get_msgbox_width(width=500) {
     if (incoming_only) {
         var maxw = scaleIt(incoming_only_width);
@@ -93,7 +99,7 @@ class ConnectStatus: Reactor.Component {
     }
 
     event click $(#setup-server) () {
-        handler.open_url("https://rustdesk.com/blog/id-relay-set/");
+        open_external_url("https://rustdesk.com/blog/id-relay-set/");
     }
 }
 
@@ -608,7 +614,7 @@ class MyIdMenu: Reactor.Component {
             </div>\
         </div>", "", function(el) {
             if (el && el.attributes) {
-                handler.open_url(el.attributes['url']);
+                open_external_url(el.attributes['url']);
             };
         }, 400, get_msgbox_width());
     }
@@ -833,10 +839,10 @@ class UpdateMe: Reactor.Component {
     }
 
     event click $(#install-me) {
-        handler.open_url("https://rustdesk.com/download");
+        open_external_url("https://rustdesk.com/download");
         return;
         if (!is_win) {
-            handler.open_url("https://rustdesk.com");
+            open_external_url("https://rustdesk.com");
             return;
         }
         var url = software_update_url + '.' + handler.get_software_ext();
@@ -886,7 +892,7 @@ class TrustMe: Reactor.Component {
     }
     
     event click $(#help-me) {
-        handler.open_url(translate("doc_mac_permission"));
+        open_external_url(translate("doc_mac_permission"));
     }
 }
 
@@ -906,7 +912,7 @@ class CanScreenRecording: Reactor.Component {
     }
     
     event click $(#help-me) {
-        handler.open_url(translate("doc_mac_permission"));
+        open_external_url(translate("doc_mac_permission"));
     }
 }
 
@@ -934,7 +940,7 @@ class FixWayland: Reactor.Component {
     }
 
     event click $(#help-me) {
-        handler.open_url(translate("doc_fix_wayland"));
+        open_external_url(translate("doc_fix_wayland"));
     }
 }
 
@@ -948,7 +954,7 @@ class ModifyDefaultLogin: Reactor.Component {
     }
 
     event click $(#help-me) {
-        handler.open_url(translate("doc_fix_wayland"));
+        open_external_url(translate("doc_fix_wayland"));
     }
 }
 
@@ -1342,7 +1348,7 @@ event change $(#msgbox input[name='confirmation']) {
 $(body).content(<div style="size:*"><App /><div #msgbox /></div>);
 
 event click $(#powered-by) {
-    handler.open_url("https://rustdesk.com");
+    open_external_url("https://rustdesk.com");
 }
 
 event click $(#open-settings) (_, me) {

@@ -64,6 +64,7 @@ pub const TIMER_OUT: Duration = Duration::from_secs(1);
 pub const DEFAULT_KEEP_ALIVE: i32 = 60_000;
 
 const MIN_VER_MULTI_UI_SESSION: &str = "1.2.4";
+const PRIVATE_APP_NAME: &str = "HomeRemote";
 
 pub mod input {
     pub const MOUSE_TYPE_MOVE: i32 = 0;
@@ -122,6 +123,7 @@ impl Drop for SimpleCallOnReturn {
 }
 
 pub fn global_init() -> bool {
+    apply_private_client_defaults();
     #[cfg(target_os = "linux")]
     {
         if !crate::platform::linux::is_x11() {
@@ -132,6 +134,11 @@ pub fn global_init() -> bool {
 }
 
 pub fn global_clean() {}
+
+#[inline]
+fn apply_private_client_defaults() {
+    *config::APP_NAME.write().unwrap() = PRIVATE_APP_NAME.to_owned();
+}
 
 #[inline]
 pub fn set_server_running(b: bool) {
@@ -940,7 +947,7 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
-    if is_custom_client() {
+    if !should_check_software_update() {
         return;
     }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
@@ -949,8 +956,11 @@ pub fn check_software_update() {
     }
 }
 
-// No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always `https://api.rustdesk.com/version/latest`.
+#[inline]
+pub fn should_check_software_update() -> bool {
+    !is_custom_client()
+}
+
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
     let (request, url) =
@@ -1081,7 +1091,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    "".to_owned()
 }
 
 #[inline]
@@ -2032,7 +2042,8 @@ pub fn create_symmetric_key_msg(their_pk_b: [u8; 32]) -> (Bytes, Bytes, secretbo
 
 #[inline]
 pub fn using_public_server() -> bool {
-    crate::get_custom_rendezvous_server(get_option("custom-rendezvous-server")).is_empty()
+    let server = crate::get_custom_rendezvous_server(get_option("custom-rendezvous-server"));
+    !server.is_empty() && is_public(&server)
 }
 
 pub struct ThrottledInterval {
@@ -2812,6 +2823,94 @@ mod tests {
             "not a url",
             "https://admin.example.com"
         ));
+    }
+
+    #[test]
+    fn test_apply_private_client_defaults_sets_home_remote_name() {
+        struct RestoreAppName(String);
+
+        impl Drop for RestoreAppName {
+            fn drop(&mut self) {
+                *config::APP_NAME.write().unwrap() = self.0.clone();
+            }
+        }
+
+        let _restore = RestoreAppName(config::APP_NAME.read().unwrap().clone());
+        *config::APP_NAME.write().unwrap() = "RustDesk".to_string();
+
+        apply_private_client_defaults();
+
+        assert_eq!(get_app_name(), "HomeRemote");
+        assert!(is_custom_client());
+    }
+
+    #[test]
+    fn test_should_check_software_update_is_disabled_for_private_client() {
+        struct RestoreAppName(String);
+
+        impl Drop for RestoreAppName {
+            fn drop(&mut self) {
+                *config::APP_NAME.write().unwrap() = self.0.clone();
+            }
+        }
+
+        let _restore = RestoreAppName(config::APP_NAME.read().unwrap().clone());
+        *config::APP_NAME.write().unwrap() = "RustDesk".to_string();
+        assert!(should_check_software_update());
+
+        apply_private_client_defaults();
+
+        assert!(!should_check_software_update());
+    }
+
+    #[test]
+    fn test_get_api_server_without_private_configuration_returns_empty() {
+        struct RestoreProdRendezvousServer(String);
+
+        impl Drop for RestoreProdRendezvousServer {
+            fn drop(&mut self) {
+                *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = self.0.clone();
+            }
+        }
+
+        let _restore = RestoreProdRendezvousServer(
+            config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone(),
+        );
+        *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = String::new();
+
+        assert_eq!(get_api_server_(String::new(), String::new()), "");
+    }
+
+    #[test]
+    fn test_using_public_server_is_false_without_public_fallback() {
+        struct RestoreCustomRendezvousServer(String);
+        struct RestoreProdRendezvousServer(String);
+
+        impl Drop for RestoreCustomRendezvousServer {
+            fn drop(&mut self) {
+                Config::set_option(
+                    keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_string(),
+                    self.0.clone(),
+                );
+            }
+        }
+
+        impl Drop for RestoreProdRendezvousServer {
+            fn drop(&mut self) {
+                *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = self.0.clone();
+            }
+        }
+
+        let _restore_custom = RestoreCustomRendezvousServer(Config::get_option(
+            keys::OPTION_CUSTOM_RENDEZVOUS_SERVER,
+        ));
+        let _restore_prod = RestoreProdRendezvousServer(
+            config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone(),
+        );
+        Config::set_option(keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_string(), String::new());
+        *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = String::new();
+
+        assert!(!using_public_server());
     }
 
     #[test]

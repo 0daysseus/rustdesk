@@ -24,6 +24,7 @@ else:
     flutter_build_dir = 'build/linux/x64/release/bundle/'
 flutter_build_dir_2 = f'flutter/{flutter_build_dir}'
 skip_cargo = False
+private_app_name = 'HomeRemote'
 
 
 def get_deb_arch() -> str:
@@ -43,6 +44,10 @@ def system2(cmd):
     if exit_code != 0:
         sys.stderr.write(f"Error occurred when executing: `{cmd}`. Exiting.\n")
         sys.exit(-1)
+
+
+def windows_portable_output_name(version: str, app_name: str = private_app_name) -> str:
+    return f"{app_name.replace(' ', '')}-{version}-portable.exe"
 
 
 def get_version():
@@ -128,6 +133,11 @@ def make_parser():
         '--unix-file-copy-paste',
         action='store_true',
         help='Build with unix file copy paste feature'
+    )
+    parser.add_argument(
+        '--linux-pkg-config',
+        action='store_true',
+        help='Enable linux-pkg-config cargo feature for Linux builds'
     )
     parser.add_argument(
         '--skip-cargo',
@@ -281,6 +291,8 @@ def get_features(args):
         features.append('flutter')
     if args.unix_file_copy_paste:
         features.append('unix-file-copy-paste')
+    if args.linux_pkg_config:
+        features.append('linux-pkg-config')
     if osx:
         if args.screencapturekit:
             features.append('screencapturekit')
@@ -457,9 +469,10 @@ def build_flutter_windows(version, features, skip_portable_pack):
                   './rustdesk_portable.exe')
     print(
         f'output location: {os.path.abspath(os.curdir)}/rustdesk_portable.exe')
-    os.rename('./rustdesk_portable.exe', f'./rustdesk-{version}-install.exe')
+    portable_output_name = windows_portable_output_name(version)
+    os.rename('./rustdesk_portable.exe', f'./{portable_output_name}')
     print(
-        f'output location: {os.path.abspath(os.curdir)}/rustdesk-{version}-install.exe')
+        f'output location: {os.path.abspath(os.curdir)}/{portable_output_name}')
 
 
 def main():
