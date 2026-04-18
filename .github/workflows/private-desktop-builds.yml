@@ -2,7 +2,17 @@ name: Build private desktop artifacts
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch, tag, or SHA to build
+        required: false
+        default: private-selfhost-no-public-domains
   workflow_call:
+    inputs:
+      source_ref:
+        required: false
+        type: string
+        default: private-selfhost-no-public-domains
 
 permissions:
   contents: read
@@ -26,6 +36,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.source_ref }}
           submodules: recursive
 
       - name: Install prerequisites
@@ -99,6 +110,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.source_ref }}
           submodules: recursive
 
       - name: Restore bridge files
@@ -187,6 +199,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.source_ref }}
           submodules: recursive
 
       - name: Restore bridge files
