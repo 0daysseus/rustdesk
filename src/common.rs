@@ -138,6 +138,7 @@ pub fn global_clean() {}
 #[inline]
 fn apply_private_client_defaults() {
     *config::APP_NAME.write().unwrap() = PRIVATE_APP_NAME.to_owned();
+    config::sanitize_private_client_server_state();
 }
 
 #[inline]
@@ -1049,11 +1050,12 @@ pub fn get_custom_rendezvous_server(custom: String) -> String {
             return lic.host.clone();
         }
     }
-    if !custom.is_empty() {
+    if !custom.is_empty() && !config::is_official_rustdesk_server(&custom) {
         return custom;
     }
-    if !config::PROD_RENDEZVOUS_SERVER.read().unwrap().is_empty() {
-        return config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
+    let prod_server = config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
+    if !prod_server.is_empty() && !config::is_official_rustdesk_server(&prod_server) {
+        return prod_server;
     }
     "".to_owned()
 }
@@ -1100,8 +1102,7 @@ fn get_api_server_(api: String, custom: String) -> String {
 
 #[inline]
 pub fn is_public(url: &str) -> bool {
-    let url = url.to_ascii_lowercase();
-    url.contains("rustdesk.com/") || url.ends_with("rustdesk.com")
+    config::is_official_rustdesk_server(url)
 }
 
 pub fn get_udp_punch_enabled() -> bool {
@@ -2782,21 +2783,19 @@ mod tests {
 
     #[test]
     fn test_is_public() {
-        // Test URLs containing "rustdesk.com/"
         assert!(is_public("https://rustdesk.com/"));
         assert!(is_public("https://www.rustdesk.com/"));
         assert!(is_public("https://api.rustdesk.com/v1"));
         assert!(is_public("https://API.RUSTDESK.COM/v1"));
         assert!(is_public("https://rustdesk.com/path"));
-
-        // Test URLs ending with "rustdesk.com"
         assert!(is_public("rustdesk.com"));
         assert!(is_public("https://rustdesk.com"));
         assert!(is_public("https://RustDesk.com"));
         assert!(is_public("http://www.rustdesk.com"));
         assert!(is_public("https://api.rustdesk.com"));
+        assert!(is_public("rs-ny.rustdesk.com:21116"));
+        assert!(is_public("https://admin.rustdesk.com:443/api"));
 
-        // Test non-public URLs
         assert!(!is_public("https://example.com"));
         assert!(!is_public("https://custom-server.com"));
         assert!(!is_public("http://192.168.1.1"));
@@ -2919,6 +2918,24 @@ mod tests {
         *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = String::new();
 
         assert!(!using_public_server());
+    }
+
+    #[test]
+    fn test_get_api_server_ignores_public_prod_rendezvous_server() {
+        struct RestoreProdRendezvousServer(String);
+
+        impl Drop for RestoreProdRendezvousServer {
+            fn drop(&mut self) {
+                *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = self.0.clone();
+            }
+        }
+
+        let _restore = RestoreProdRendezvousServer(
+            config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone(),
+        );
+        *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = "rs-ny.rustdesk.com:21116".to_owned();
+
+        assert_eq!(get_api_server_(String::new(), String::new()), "");
     }
 
     #[test]
