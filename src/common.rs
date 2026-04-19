@@ -634,6 +634,10 @@ async fn test_nat_type_() -> ResultType<bool> {
     log::info!("Testing nat ...");
     let start = std::time::Instant::now();
     let server1 = Config::get_rendezvous_server();
+    if server1.is_empty() {
+        log::info!("Skipping NAT test because no rendezvous server is configured");
+        return Ok(true);
+    }
     let server2 = crate::increase_port(&server1, -1);
     let mut msg_out = RendezvousMessage::new();
     let serial = Config::get_serial();
@@ -1192,7 +1196,11 @@ fn tcp_proxy_log_target(url: &str) -> String {
 
 #[inline]
 fn get_tcp_proxy_addr() -> String {
-    check_port(Config::get_rendezvous_server(), RENDEZVOUS_PORT)
+    let rendezvous_server = Config::get_rendezvous_server();
+    if rendezvous_server.is_empty() {
+        return rendezvous_server;
+    }
+    check_port(rendezvous_server, RENDEZVOUS_PORT)
 }
 
 /// Send an HTTP request via the rendezvous server's TCP proxy using protobuf.
@@ -2935,6 +2943,38 @@ mod tests {
         );
 
         assert_eq!(get_tcp_proxy_addr(), format!("[1:2]:{RENDEZVOUS_PORT}"));
+    }
+
+    #[test]
+    fn test_get_tcp_proxy_addr_is_empty_without_rendezvous_server() {
+        struct RestoreCustomRendezvousServer(String);
+        struct RestoreProdRendezvousServer(String);
+
+        impl Drop for RestoreCustomRendezvousServer {
+            fn drop(&mut self) {
+                Config::set_option(
+                    keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_string(),
+                    self.0.clone(),
+                );
+            }
+        }
+
+        impl Drop for RestoreProdRendezvousServer {
+            fn drop(&mut self) {
+                *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = self.0.clone();
+            }
+        }
+
+        let _restore_custom = RestoreCustomRendezvousServer(Config::get_option(
+            keys::OPTION_CUSTOM_RENDEZVOUS_SERVER,
+        ));
+        let _restore_prod = RestoreProdRendezvousServer(
+            config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone(),
+        );
+        Config::set_option(keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_string(), String::new());
+        *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = String::new();
+
+        assert_eq!(get_tcp_proxy_addr(), "");
     }
 
     #[tokio::test]

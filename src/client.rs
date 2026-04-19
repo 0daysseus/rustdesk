@@ -174,6 +174,14 @@ lazy_static::lazy_static! {
 
 const PUBLIC_SERVER: &str = "public";
 
+fn resolve_public_rendezvous_servers(servers: &[&str]) -> Option<(String, Vec<String>)> {
+    let (first, remaining) = servers.split_first()?;
+    Some((
+        check_port(first, RENDEZVOUS_PORT),
+        remaining.iter().map(|server| server.to_string()).collect(),
+    ))
+}
+
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn get_key_state(key: enigo::Key) -> bool {
     use enigo::KeyboardControllable;
@@ -293,18 +301,19 @@ impl Client {
             crate::get_rendezvous_server(1_000).await
         } else {
             if other_server == PUBLIC_SERVER {
-                (
-                    check_port(RENDEZVOUS_SERVERS[0], RENDEZVOUS_PORT),
-                    RENDEZVOUS_SERVERS[1..]
-                        .iter()
-                        .map(|x| x.to_string())
-                        .collect(),
-                    true,
-                )
+                let Some((server, fallback_servers)) =
+                    resolve_public_rendezvous_servers(RENDEZVOUS_SERVERS)
+                else {
+                    bail!("Public rendezvous server is unavailable");
+                };
+                (server, fallback_servers, true)
             } else {
                 (check_port(other_server, RENDEZVOUS_PORT), Vec::new(), true)
             }
         };
+        if rendezvous_server.is_empty() {
+            bail!("No rendezvous server configured");
+        }
 
         if crate::get_ipv6_punch_enabled() {
             crate::test_ipv6().await;
@@ -4055,6 +4064,7 @@ pub mod peer_online {
 
     #[cfg(test)]
     mod tests {
+        use hbb_common::config;
         use hbb_common::tokio;
 
         #[tokio::test]
@@ -4071,6 +4081,14 @@ pub mod peer_online {
                 },
             )
             .await;
+        }
+
+        #[test]
+        fn test_public_server_alias_is_disabled_without_public_defaults() {
+            assert_eq!(
+                crate::client::resolve_public_rendezvous_servers(config::RENDEZVOUS_SERVERS),
+                None
+            );
         }
     }
 }
