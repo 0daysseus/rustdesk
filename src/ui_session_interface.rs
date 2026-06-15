@@ -175,13 +175,16 @@ impl SessionPermissionConfig {
         *self.server_clipboard_enabled.read().unwrap()
             && *self.server_keyboard_enabled.read().unwrap()
             && !self.lc.read().unwrap().disable_clipboard.v
+            && !self.lc.read().unwrap().view_only.v
     }
 
     #[cfg(feature = "unix-file-copy-paste")]
     pub fn is_file_clipboard_required(&self) -> bool {
+        let lc = self.lc.read().unwrap();
         *self.server_keyboard_enabled.read().unwrap()
             && *self.server_file_transfer_enabled.read().unwrap()
-            && self.lc.read().unwrap().enable_file_copy_paste.v
+            && lc.enable_file_copy_paste.v
+            && !lc.view_only.v
     }
 }
 
@@ -411,13 +414,16 @@ impl<T: InvokeUiSession> Session<T> {
         *self.server_clipboard_enabled.read().unwrap()
             && *self.server_keyboard_enabled.read().unwrap()
             && !self.lc.read().unwrap().disable_clipboard.v
+            && !self.lc.read().unwrap().view_only.v
     }
 
     #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
     pub fn is_file_clipboard_required(&self) -> bool {
+        let lc = self.lc.read().unwrap();
         *self.server_keyboard_enabled.read().unwrap()
             && *self.server_file_transfer_enabled.read().unwrap()
-            && self.lc.read().unwrap().enable_file_copy_paste.v
+            && lc.enable_file_copy_paste.v
+            && !lc.view_only.v
     }
 
     #[cfg(feature = "flutter")]
@@ -870,12 +876,14 @@ impl<T: InvokeUiSession> Session<T> {
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     pub fn enter(&self, keyboard_mode: String) {
-        keyboard::client::change_grab_status(GrabState::Run, &keyboard_mode);
+        let session_id = self.lc.read().unwrap().session_id as u128;
+        keyboard::client::change_grab_status(GrabState::Run, &keyboard_mode, session_id);
     }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     pub fn leave(&self, keyboard_mode: String) {
-        keyboard::client::change_grab_status(GrabState::Wait, &keyboard_mode);
+        let session_id = self.lc.read().unwrap().session_id as u128;
+        keyboard::client::change_grab_status(GrabState::Wait, &keyboard_mode, session_id);
     }
 
     // flutter only TODO new input
@@ -1462,10 +1470,11 @@ impl<T: InvokeUiSession> Session<T> {
         self.send(Data::ElevateWithLogon(username, password));
     }
 
-    #[cfg(any(target_os = "ios"))]
+    #[cfg(any(target_os = "android", target_os = "ios", not(feature = "flutter")))]
     pub fn switch_sides(&self) {}
 
-    #[cfg(not(any(target_os = "ios")))]
+    #[cfg(feature = "flutter")]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     #[tokio::main(flavor = "current_thread")]
     pub async fn switch_sides(&self) {
         match crate::ipc::connect(1000, "").await {
